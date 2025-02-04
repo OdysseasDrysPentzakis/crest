@@ -165,6 +165,5 @@ cython_debug/
 log/
 experiments/
 tmp/
-lp-sparsemap/
 eigen/
 todos.txt
