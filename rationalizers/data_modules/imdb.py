@@ -16,8 +16,8 @@ class ImdbDataModule(BaseDataModule):
 
     def __init__(self, d_params: dict, tokenizer: object = None):
         super().__init__(d_params)
-        # hard-coded stuff
-        self.path = "imdb"  # hf_datasets will handle everything
+        # Remove or update the path variable
+        self.path = None  # No longer needed
         self.is_multilabel = True
         self.nb_classes = 2  # neg, pos
 
@@ -34,8 +34,6 @@ class ImdbDataModule(BaseDataModule):
         self.label_encoder = None  # no label encoder for this dataset
         self.tokenizer = tokenizer
         self.tokenizer_cls = partial(
-            # WhitespaceEncoder,
-            # TreebankEncoder,
             StaticTokenizerEncoder,
             tokenize=nltk.wordpunct_tokenize,
             min_occurrences=self.vocab_min_occurrences,
@@ -93,38 +91,43 @@ class ImdbDataModule(BaseDataModule):
         return batch
 
     def prepare_data(self):
-        # download data, prepare and store it (do not assign to self vars)
-        # _ = hf_datasets.load_dataset(
-        #     path=self.path,
-        #     save_infos=True,
-        # )
+        # No need to download data
         pass
 
     def setup(self, stage: str = None):
-        # Assign train/val/test datasets for use in dataloaders
-        self.dataset = hf_datasets.load_dataset(
-            path=self.path,
-            download_mode=hf_datasets.DownloadMode.REUSE_CACHE_IF_EXISTS,
-            ignore_verifications=True  # weird checksum mismatch from hf_datasets???
-        )
-        # remove unnecessary data
-        del self.dataset['unsupervised']
+        # Load the preprocessed CSV files
+        train_path = "imdb_train_preprocessed.csv"
+        test_path = "imdb_test_preprocessed.csv"
 
+        # Load datasets from CSV files
+        self.dataset = hf_datasets.load_dataset(
+            "csv",
+            data_files={
+                "train": train_path,
+                "test": test_path,
+            }
+        )
+
+        # Remove unnecessary data (if any)
+        if 'unsupervised' in self.dataset:
+            del self.dataset['unsupervised']
+
+        # Create validation split if required
         if self.create_validation_split:
             modified_dataset = self.dataset["train"].train_test_split(test_size=0.1)
             self.dataset["train"] = modified_dataset["train"]
             self.dataset["validation"] = modified_dataset["test"]
 
-        # cap dataset size - useful for quick testing
+        # Cap dataset size - useful for quick testing
         if self.max_dataset_size is not None:
             self.dataset["train"] = self.dataset["train"].select(range(self.max_dataset_size))
             if self.create_validation_split:
                 self.dataset["validation"] = self.dataset["validation"].select(range(self.max_dataset_size))
             self.dataset["test"] = self.dataset["test"].select(range(self.max_dataset_size))
 
-        # build tokenize rand label encoder
+        # Build tokenizer and label encoder
         if self.tokenizer is None:
-            # build tokenizer info (vocab + special tokens) based on train and validation set
+            # Build tokenizer info (vocab + special tokens) based on train and validation set
             if self.create_validation_split:
                 tok_samples = chain(
                     self.dataset["train"]["text"],
@@ -134,7 +137,7 @@ class ImdbDataModule(BaseDataModule):
                 tok_samples = self.dataset["train"]["text"]
             self.tokenizer = self.tokenizer_cls(tok_samples)
 
-        # function to map strings to ids
+        # Function to map strings to ids
         def _encode(example: dict):
             if isinstance(self.tokenizer, PreTrainedTokenizerBase):
                 example["input_ids"] = self.tokenizer(
@@ -146,15 +149,15 @@ class ImdbDataModule(BaseDataModule):
                 example["input_ids"] = self.tokenizer.encode(example["text"].strip())
             return example
 
-        # function to filter out examples longer than max_seq_len
+        # Function to filter out examples longer than max_seq_len
         def _filter(example: dict):
             return len(example["input_ids"]) <= self.max_seq_len
 
-        # apply encode and filter
+        # Apply encode and filter
         self.dataset = self.dataset.map(_encode)
         self.dataset = self.dataset.filter(_filter)
 
-        # convert `columns` to pytorch tensors and keep un-formatted columns
+        # Convert `columns` to pytorch tensors and keep un-formatted columns
         self.dataset.set_format(
             type="torch",
             columns=["input_ids", "label"],

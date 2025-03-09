@@ -82,7 +82,7 @@ train:
 
     # trainer (will be passed to pytorch-lightning's Trainer object)
     # see the complete list here: https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#trainer-flags
-    accelerator: gpu
+    accelerator: cpu
     devices: 1
     gradient_clip_val: 5.0
     min_epochs: 3

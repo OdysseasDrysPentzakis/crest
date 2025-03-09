@@ -50,7 +50,7 @@ class SparseMAPExplainer(BaseExplainer):
             x[:, 0].masked_fill_(~mask[k], -1e12)
 
             # Set transition scores for valid positions
-            transition_scores = torch.tensor(t[k], device=scores.device)
+            transition_scores = t[k].clone().detach().to(scores.device)
             transition = torch.zeros(
                 (length + 1, num_states, num_states), device=scores.device
             )

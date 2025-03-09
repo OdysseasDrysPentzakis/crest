@@ -29,8 +29,18 @@ def seq_budget_smap(
     unary_scores.shape[0]
 
     fg = TorchFactorGraph()
+    print(f"unary_scores shape: {unary_scores.shape}")
+    print(f"transition_scores shape: {transition_scores.shape}")
+    transition_scores = transition_scores[:unary_scores.shape[0], :, :]
+
+    assert transition_scores.shape[0] == unary_scores.shape[0], "Mismatch in sequence lengths!"
+
     u = fg.variable_from(unary_scores)
+    
     fg.add(SequenceBudget(u, transition_scores, budget))
+    print(f"u shape: {u.shape}")
+    print(f"budget: {budget}")
+
     fg.solve(max_iter=max_iter, step_size=step_size)
     u.value.cuda()
     return u.value[:, 0]
