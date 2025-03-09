@@ -2,7 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+venv/
+venv_py38/
 # C extensions
 *.so
 
@@ -164,7 +165,6 @@ cython_debug/
 log/
 experiments/
 tmp/
-lp-sparsemap/
 eigen/
 todos.txt
 data/imdb/
